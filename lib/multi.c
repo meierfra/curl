@@ -1426,6 +1426,8 @@ static CURLMcode multi_runsingle(struct Curl_multi *multi,
       Curl_pgrsTime(data, TIMER_STARTSINGLE);
       result = Curl_connect(data, &data->easy_conn,
                             &async, &protocol_connect);
+      /* Forget about lastconnect since we have a new easy_conn now */
+      data->state.lastconnect = NULL;
       if(CURLE_NO_CONNECTION_AVAILABLE == result) {
         /* There was no connection available. We will go to the pending
            state and wait for an available connection. */

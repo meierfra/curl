@@ -1213,6 +1213,8 @@ static int conn_is_conn(struct connectdata *conn, void *param)
 /*
  * Used to extract socket and connectdata struct for the most recent
  * transfer on the given Curl_easy.
+ * If the transfer is still in progress, the current socket and connectdata
+ * struct is returned.
  *
  * The returned socket will be CURL_SOCKET_BAD in case of failure!
  */
@@ -1224,19 +1226,22 @@ curl_socket_t Curl_getconnectinfo(struct Curl_easy *data,
   DEBUGASSERT(data);
 
   /* this works for an easy handle:
-   * - that has been used for curl_easy_perform()
-   * - that is associated with a multi handle, and whose connection
-   *   was detached with CURLOPT_CONNECT_ONLY
+   * - that has or is being used with curl_easy_perform()
+   * - that is associated with a multi handle and is being used
+   *   or whose connection was detached with CURLOPT_CONNECT_ONLY
    */
-  if(data->state.lastconnect && (data->multi_easy || data->multi)) {
-    struct connectdata *c = data->state.lastconnect;
+  if((data->state.lastconnect || data->easy_conn)
+      && ( data->multi || data->multi_easy)) {
+    struct connectdata *c = data->state.lastconnect?
+        data->state.lastconnect : data->easy_conn;
     struct connfind find;
-    find.tofind = data->state.lastconnect;
+    find.tofind = c;
     find.found = FALSE;
 
-    Curl_conncache_foreach(data->multi_easy?
-                           &data->multi_easy->conn_cache:
-                           &data->multi->conn_cache, &find, conn_is_conn);
+    Curl_conncache_foreach(data->multi?
+                           &data->multi->conn_cache :
+                           &data->multi_easy->conn_cache,
+                           &find, conn_is_conn);
 
     if(!find.found) {
       data->state.lastconnect = NULL;
